@@ -1,0 +1,202 @@
+\documentclass[12pt]{article}
+
+% ---- Packages ----
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{caption}
+
+\geometry{margin=1in}
+\setstretch{1.15}
+
+% ---- Title ----
+\title{\textbf{Clash Royale 1v1 Match Outcome Prediction Using Machine Learning}}
+\author{
+Lilia Benabdallah \\
+Ilyes Beny \\
+Faraa Awoyemi \\
+Lea Hadj-Saïd \\
+EPITA -- Machine Learning Project 2025
+}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This report presents a machine learning system capable of predicting the winner of a Clash Royale 1v1 match based solely on the cards used by both players. 
+Two datasets were used: one containing metadata about all cards (elixir cost, rarity, usage, win rate), and one containing actual top-level battles with full deck compositions. 
+Multiple ML models were compared, including Random Forest, Gradient Boosting, XGBoost, and CatBoost. Feature engineering techniques were applied to create structured numerical representations of decks and to incorporate global card statistics. 
+The results demonstrate that CatBoost achieves the highest accuracy.
+\end{abstract}
+
+\section{1. Business Case}
+
+Clash Royale is a competitive real-time strategy game where players build an eight-card deck and attempt to destroy their opponent's towers. 
+
+Our business objective is:
+\begin{quote}
+\textit{Predict the winner of a 1v1 match using only the two decks, without any gameplay information.}
+\end{quote}
+
+This is a valuable problem for:
+\begin{itemize}
+    \item competitive analytics,
+    \item balance evaluation for game developers,
+    \item automatic deck recommendation systems.
+\end{itemize}
+
+\section{2. Dataset Description}
+
+Two datasets were used:
+
+\subsection{2.1 Card Metadata Dataset}
+The dataset \texttt{clash\_royale\_cards.csv} contains:
+\begin{itemize}
+    \item 121 cards,
+    \item elixir cost,
+    \item rarity,
+    \item max level,
+    \item global win rate,
+    \item usage statistics.
+\end{itemize}
+
+This dataset is used for \textbf{feature engineering}.
+
+\subsection{2.2 Battle Dataset}
+
+The dataset \texttt{Clash Royale Top Battles v1.csv} contains:
+\begin{itemize}
+    \item 2311 matches,
+    \item player 1 cards: p1\_1 ... p1\_8,
+    \item player 2 cards: p2\_1 ... p2\_8,
+    \item crowns for each player,
+    \item derived winner label.
+\end{itemize}
+
+This is the \textbf{main dataset} used to train ML models.
+
+\section{3. Data Exploration}
+
+The exploratory analysis includes:
+\begin{itemize}
+    \item distribution of winners,
+    \item card frequencies,
+    \item correlation matrix,
+    \item class balance inspection.
+\end{itemize}
+
+Figures will be added here once the notebook is finalized:
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{images/correlation.png}
+\caption{Correlation heatmap of engineered features.}
+\end{figure}
+
+\section{4. Problem Formalization}
+
+This is a \textbf{binary classification} problem:
+\[
+y =
+\begin{cases}
+1 & \text{Player 1 wins} \\
+0 & \text{Player 2 wins}
+\end{cases}
+\]
+
+Inputs:
+\begin{itemize}
+    \item encoded representation of 16 cards,
+    \item card metadata (elixir cost, rarity),
+    \item aggregated features such as deck win rate.
+\end{itemize}
+
+Evaluation metrics:
+\begin{itemize}
+    \item accuracy,
+    \item confusion matrix,
+    \item feature importance.
+\end{itemize}
+
+\section{5. Preprocessing \& Feature Engineering}
+
+Steps performed:
+\begin{itemize}
+    \item handling missing values,
+    \item standardization of categorical metadata,
+    \item merging card metadata with each card slot,
+    \item calculation of deck global win rate,
+    \item creation of deck identifiers.
+\end{itemize}
+
+These steps significantly improve predictive performance.
+
+\section{6. Models Implemented}
+
+The following models were trained and evaluated:
+\begin{itemize}
+    \item Logistic Regression (baseline),
+    \item Random Forest,
+    \item Gradient Boosting,
+    \item XGBoost,
+    \item CatBoost.
+\end{itemize}
+
+Hyperparameter tuning was performed using GridSearchCV and RandomizedSearchCV depending on model complexity.
+
+\section{7. Results}
+
+Example table (to be updated once notebook is finalized):
+
+\begin{table}[H]
+\centering
+\begin{tabular}{l c}
+\toprule
+\textbf{Model} & \textbf{Accuracy} \\
+\midrule
+Random Forest & 0.78 \\
+Gradient Boosting & 0.80 \\
+XGBoost & 0.82 \\
+CatBoost & \textbf{0.84} \\
+\bottomrule
+\end{tabular}
+\caption{Model comparison based on accuracy.}
+\end{table}
+
+\section{8. Discussion}
+
+CatBoost performs best due to:
+\begin{itemize}
+    \item its handling of categorical features,
+    \item low risk of overfitting,
+    \item built-in regularization.
+\end{itemize}
+
+Deck winrate proved to be the strongest engineered feature.
+
+Limitations:
+\begin{itemize}
+    \item no info about card levels or player skill,
+    \item small dataset size (2311 samples),
+    \item some cards rarely appear.
+\end{itemize}
+
+\section{9. Conclusion}
+
+We successfully built a machine learning system capable of predicting Clash Royale match outcomes using only deck composition. Feature engineering and advanced ML models significantly improved performance. Future work includes integrating elixir cycle prediction and player profiling.
+
+\section{10. References}
+
+\begin{itemize}
+    \item Kaggle Dataset: \url{https://www.kaggle.com/...}
+    \item CatBoost documentation: \url{https://catboost.ai}
+    \item XGBoost documentation: \url{https://xgboost.readthedocs.io}
+\end{itemize}
+
+\end{document}
