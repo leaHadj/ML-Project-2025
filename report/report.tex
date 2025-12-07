@@ -1,202 +1,99 @@
-\documentclass[12pt]{article}
-
-% ---- Packages ----
+\documentclass[11pt]{article}
+\usepackage[a4paper, margin=2.5cm]{geometry}
 \usepackage{graphicx}
-\usepackage{float}
 \usepackage{amsmath}
-\usepackage{booktabs}
 \usepackage{hyperref}
-\usepackage{geometry}
-\usepackage{setspace}
-\usepackage{caption}
+\usepackage{float}
 
-\geometry{margin=1in}
-\setstretch{1.15}
-
-% ---- Title ----
-\title{\textbf{Clash Royale 1v1 Match Outcome Prediction Using Machine Learning}}
-\author{
-Lilia Benabdallah \\
-Ilyes Beny \\
-Faraa Awoyemi \\
-Lea Hadj-Saïd \\
-EPITA -- Machine Learning Project 2025
-}
+\title{Clash Royale Match Outcome Prediction}
+\author{Faraa Awoyemi, Lilia Benabdallah, Ilyes Ben Younes, Lea Hadj-Said}
 \date{}
 
 \begin{document}
 
 \maketitle
 
-\begin{abstract}
-This report presents a machine learning system capable of predicting the winner of a Clash Royale 1v1 match based solely on the cards used by both players. 
-Two datasets were used: one containing metadata about all cards (elixir cost, rarity, usage, win rate), and one containing actual top-level battles with full deck compositions. 
-Multiple ML models were compared, including Random Forest, Gradient Boosting, XGBoost, and CatBoost. Feature engineering techniques were applied to create structured numerical representations of decks and to incorporate global card statistics. 
-The results demonstrate that CatBoost achieves the highest accuracy.
-\end{abstract}
+\section{Introduction}
 
-\section{1. Business Case}
+The goal of this project is to predict the result of a 1v1 Clash Royale match using only the decks of both players. We work on a supervised classification problem where the model must predict if Player 1 wins or loses the match.
 
-Clash Royale is a competitive real-time strategy game where players build an eight-card deck and attempt to destroy their opponent's towers. 
+We found our datasets on Kaggle. The first dataset contains real competitive matches played on the top ladder. It is not a tournament dataset. Each row corresponds to one independent match between two players. The second dataset contains information about the cards such as elixir cost, rarity, win rate and usage rate.
 
-Our business objective is:
-\begin{quote}
-\textit{Predict the winner of a 1v1 match using only the two decks, without any gameplay information.}
-\end{quote}
+At first, we only use deck composition. Then, in Phase 2, we add more strategic information to improve the predictions.
 
-This is a valuable problem for:
-\begin{itemize}
-    \item competitive analytics,
-    \item balance evaluation for game developers,
-    \item automatic deck recommendation systems.
-\end{itemize}
+\section{Dataset Description}
 
-\section{2. Dataset Description}
+The main dataset contains 2311 matches. For each match, we have the 8 cards of Player 1, the 8 cards of Player 2, and the number of crowns scored by both players. We also add a new column called \texttt{winner} or \texttt{win\_p1} which is equal to 1 if Player 1 has more crowns than Player 2, and 0 otherwise.
 
-Two datasets were used:
+This dataset is a collection of matches played by different players at high level. The dataset is naturally imbalanced. Player 1 wins around 72\% of the matches. This happens because Player 1 is often the player who is higher on the ladder or in a winning streak. This imbalance reflects real game conditions and should not be artificially corrected, but it must be taken into account when evaluating the models.
 
-\subsection{2.1 Card Metadata Dataset}
-The dataset \texttt{clash\_royale\_cards.csv} contains:
-\begin{itemize}
-    \item 121 cards,
-    \item elixir cost,
-    \item rarity,
-    \item max level,
-    \item global win rate,
-    \item usage statistics.
-\end{itemize}
+\section{Exploratory Data Analysis}
 
-This dataset is used for \textbf{feature engineering}.
+We start by checking the quality of the dataset. There are no missing values, no duplicated rows, and all crown values are valid between 0 and 3. This means that no real data cleaning is required.
 
-\subsection{2.2 Battle Dataset}
+We then analyze the most frequent cards for Player 1 and Player 2. Some cards are clearly over-represented. This shows that the dataset follows the current meta of the game. This also creates a natural bias, because the model will automatically learn better the cards that appear very often.
 
-The dataset \texttt{Clash Royale Top Battles v1.csv} contains:
-\begin{itemize}
-    \item 2311 matches,
-    \item player 1 cards: p1\_1 ... p1\_8,
-    \item player 2 cards: p2\_1 ... p2\_8,
-    \item crowns for each player,
-    \item derived winner label.
-\end{itemize}
+We also study the correlation between the presence of each card in Player 1’s deck and the number of crowns scored by Player 1. We observe that some cards like Golem, Mini P.E.K.K.A, Zap or Bandit are positively correlated with Player 1’s victory. This does not mean that these cards guarantee a win, but they statistically increase the chances of winning in this dataset.
 
-This is the \textbf{main dataset} used to train ML models.
+\section{Data Preprocessing}
 
-\section{3. Data Exploration}
+Since the card names are categorical data, we cannot use them directly in machine learning models. We apply One-Hot Encoding on the 16 card slots (8 for Player 1 and 8 for Player 2). After encoding, each match is represented by a large binary vector with around 1300 columns.
 
-The exploratory analysis includes:
-\begin{itemize}
-    \item distribution of winners,
-    \item card frequencies,
-    \item correlation matrix,
-    \item class balance inspection.
-\end{itemize}
+We separate the dataset into training and testing sets using an 80\% / 20\% split. We use stratified splitting in order to keep the same proportion of wins and losses in both sets. Scaling is not required at this step because One-Hot Encoding only produces binary values.
 
-Figures will be added here once the notebook is finalized:
+\section{Phase 1: Baseline Models}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.8\textwidth]{images/correlation.png}
-\caption{Correlation heatmap of engineered features.}
-\end{figure}
+We test three baseline models: Logistic Regression, Decision Tree, and K-Nearest Neighbors.
 
-\section{4. Problem Formalization}
+The dataset is strongly imbalanced, so most models tend to predict victories much better than defeats. The KNN model almost always predicts Player 1 wins, which gives a high recall for the winning class but very poor detection of losses. This shows that KNN mostly copies what it sees and does not learn strong decision rules.
 
-This is a \textbf{binary classification} problem:
-\[
-y =
-\begin{cases}
-1 & \text{Player 1 wins} \\
-0 & \text{Player 2 wins}
-\end{cases}
-\]
+The Decision Tree reaches an accuracy around 0.62. It predicts very few defeats correctly and misses most losses. This model follows the global bias of the dataset and is not reliable in this context.
 
-Inputs:
-\begin{itemize}
-    \item encoded representation of 16 cards,
-    \item card metadata (elixir cost, rarity),
-    \item aggregated features such as deck win rate.
-\end{itemize}
+Logistic Regression reaches an accuracy around 0.63 to 0.67 depending on the parameters. It is the only baseline model that really learns useful patterns inside the decks. It does not only follow the dataset bias but also uses the card combinations to improve predictions.
 
-Evaluation metrics:
-\begin{itemize}
-    \item accuracy,
-    \item confusion matrix,
-    \item feature importance.
-\end{itemize}
+\section{Hyperparameter Tuning}
 
-\section{5. Preprocessing \& Feature Engineering}
+We use GridSearchCV to test several combinations of hyperparameters automatically. This allows us to select the best parameters for each model.
 
-Steps performed:
-\begin{itemize}
-    \item handling missing values,
-    \item standardization of categorical metadata,
-    \item merging card metadata with each card slot,
-    \item calculation of deck global win rate,
-    \item creation of deck identifiers.
-\end{itemize}
+After tuning, the best cross-validated scores are around 0.72 to 0.75. However, the test accuracy remains around 0.69. This shows that tuning helps slightly, but deck composition alone is still not enough to reach high performance.
 
-These steps significantly improve predictive performance.
+\section{Phase 2: Dataset Enrichment}
 
-\section{6. Models Implemented}
+In Phase 2, we enrich the dataset using the second dataset from Kaggle. This dataset contains information about each card such as elixir cost, rarity, win rate and usage rate.
 
-The following models were trained and evaluated:
-\begin{itemize}
-    \item Logistic Regression (baseline),
-    \item Random Forest,
-    \item Gradient Boosting,
-    \item XGBoost,
-    \item CatBoost.
-\end{itemize}
+We normalize the card names in both datasets and merge the information for each card slot of both players. After merging, some values are missing because not all cards exist in the second dataset. We fill these missing numerical values using the mean of each column.
 
-Hyperparameter tuning was performed using GridSearchCV and RandomizedSearchCV depending on model complexity.
+Then we remove all useless columns such as card names and normalized names.
 
-\section{7. Results}
+\section{Advanced Feature Engineering}
 
-Example table (to be updated once notebook is finalized):
+After merging, we create new aggregated features for each deck:
+the average elixir cost, the average card win rate, the average usage rate, and the average rarity for both players.
 
-\begin{table}[H]
-\centering
-\begin{tabular}{l c}
-\toprule
-\textbf{Model} & \textbf{Accuracy} \\
-\midrule
-Random Forest & 0.78 \\
-Gradient Boosting & 0.80 \\
-XGBoost & 0.82 \\
-CatBoost & \textbf{0.84} \\
-\bottomrule
-\end{tabular}
-\caption{Model comparison based on accuracy.}
-\end{table}
+We also compute the number of identical cards between both decks, called deck overlap.
 
-\section{8. Discussion}
+These features represent the general strength and style of each deck instead of focusing only on individual card names.
 
-CatBoost performs best due to:
-\begin{itemize}
-    \item its handling of categorical features,
-    \item low risk of overfitting,
-    \item built-in regularization.
-\end{itemize}
+\section{Phase 2 Models}
 
-Deck winrate proved to be the strongest engineered feature.
+We train again Logistic Regression, Decision Tree and KNN using these new features. The performances increase slightly compared to Phase 1.
 
-Limitations:
-\begin{itemize}
-    \item no info about card levels or player skill,
-    \item small dataset size (2311 samples),
-    \item some cards rarely appear.
-\end{itemize}
+We then test more advanced models: Random Forest, XGBoost, and CatBoost. These models reach better results. CatBoost gives the best performance with an accuracy around 0.73 and a ROC-AUC around 0.60.
 
-\section{9. Conclusion}
+We also test dimensionality reduction with PCA. With only 8 principal components, Logistic Regression still reaches an accuracy around 0.72. This shows that most of the information is contained in a small number of strategic features.
 
-We successfully built a machine learning system capable of predicting Clash Royale match outcomes using only deck composition. Feature engineering and advanced ML models significantly improved performance. Future work includes integrating elixir cycle prediction and player profiling.
+Finally, we use a voting ensemble combining Logistic Regression, Random Forest and XGBoost. This ensemble reaches an accuracy around 0.724. The gain remains limited.
 
-\section{10. References}
+\section{Discussion}
 
-\begin{itemize}
-    \item Kaggle Dataset: \url{https://www.kaggle.com/...}
-    \item CatBoost documentation: \url{https://catboost.ai}
-    \item XGBoost documentation: \url{https://xgboost.readthedocs.io}
-\end{itemize}
+Even with advanced models and better features, the overall performance stays limited. This is mainly due to missing gameplay information. The dataset does not contain card levels, player skill, elixir management, timing, or placement decisions. Two identical decks can produce very different results depending on the player.
+
+The dataset imbalance also makes the prediction of defeats difficult. The models naturally learn that Player 1 wins most of the time.
+
+\section{Conclusion}
+
+In this project, we showed that it is possible to predict the result of a Clash Royale match using only the deck composition. We started with simple models and then added more strategic features and advanced algorithms.
+
+However, the performance remains limited by the lack of real gameplay information. Future work could include real-time match data, player levels, and elixir usage in order to significantly improve prediction accuracy.
 
 \end{document}
